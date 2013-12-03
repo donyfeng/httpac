@@ -3,17 +3,15 @@ import urllib.parse
 import http.cookiejar
 import re
 import time
+import json
 
 tieba_url = "http://tieba.baidu.com"
 token_url = "https://passport.baidu.com/v2/api/?getapi&tpl=mn&apiver=v3&tt=1385610373352&class=login&logintype=dialogLogin&callback=bd__cbs__rh1uhg"
 login_url = "https://passport.baidu.com/v2/api/?login"
-btn_url = "http://tieba.baidu.com/mo/q/pv?lp=sfrs_sign_like_click_show&_t=1386048146667"
 user_agent = "Mozilla/5.0 (iPhone; CPU iPhone OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A5376e Safari/8536.25"
-user_name = "winden@yeah.net"
+user_name = "zedongfeng"
 password = "185400ab"
-cookie_file = "cookie2.txt"
 sign_url = "http://tieba.baidu.com/mo/q/sign"
-
 
 def ReadCookie(cookie_file):
     try:
@@ -83,6 +81,7 @@ def FindTbs(data):
 if __name__ == "__main__":
     fp = open("1.html",'wb')
 
+    cookie_file = 'cookie.'+user_name+'.txt'
     cj = ReadCookie(cookie_file)
     opener = BuildOpener(cj)
 
@@ -104,11 +103,22 @@ if __name__ == "__main__":
     for fav_tieba in fav_tiebas:
         req = BuildReq(urllib.parse.urljoin(tieba_url,fav_tieba))
         data = opener.open(req).read()
+
         postdata = FindTbs(data)
         url = urllib.parse.urljoin(sign_url,postdata)
-        print(url)
         req = BuildReq(url)
         data = opener.open(req).read()
+
+        resp = json.loads(data.decode('utf-8'))
+        
+        if not resp:
+            print('Error: NO TBS')
+        elif resp['error'] != '':
+            print('Error:%s' %resp['error'])
+        else:
+            print('Signed')
+
+
         fp.write(data)
         time.sleep(2)
     cj.save()
