@@ -9,7 +9,7 @@ tieba_url = "http://tieba.baidu.com"
 token_url = "https://passport.baidu.com/v2/api/?getapi&tpl=mn&apiver=v3&tt=1385610373352&class=login&logintype=dialogLogin&callback=bd__cbs__rh1uhg"
 login_url = "https://passport.baidu.com/v2/api/?login"
 user_agent = "Mozilla/5.0 (iPhone; CPU iPhone OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A5376e Safari/8536.25"
-user_name = "zedongfeng"
+user_name = "winden@yeah.net"
 password = "185400ab"
 sign_url = "http://tieba.baidu.com/mo/q/sign"
 
@@ -79,49 +79,52 @@ def FindTbs(data):
     return signdata
 
 if __name__ == "__main__":
-    fp = open("1.html",'wb')
+    for line in open('users.txt'):
+        user_name = line.split(':')[0]
+        password  =  line.split(':')[1] 
+        fp = open("1.html",'wb')
 
-    cookie_file = 'cookie.'+user_name+'.txt'
-    cj = ReadCookie(cookie_file)
-    opener = BuildOpener(cj)
+        cookie_file = 'cookie.'+user_name+'.txt'
+        cj = ReadCookie(cookie_file)
+        opener = BuildOpener(cj)
 
-    req = BuildReq(tieba_url)
-    data = opener.open(req)
+        req = BuildReq(tieba_url)
+        data = opener.open(req)
 
-    req = BuildReq(token_url)
-    data = opener.open(req).read()
-    token = re.findall('"token" : "(\w+)"',data.decode('utf-8'))[0]
-
-    postdata = BuildPostdata(user_name,password,token)
-    req = BuildReq(login_url)
-    data = opener.open(req,postdata)
-
-    req = BuildReq(tieba_url)
-    data = opener.open(req).read()
-    fav_tiebas = FindFavTieba(data)
-
-    for fav_tieba in fav_tiebas:
-        req = BuildReq(urllib.parse.urljoin(tieba_url,fav_tieba))
+        req = BuildReq(token_url)
         data = opener.open(req).read()
+        token = re.findall('"token" : "(\w+)"',data.decode('utf-8'))[0]
 
-        postdata = FindTbs(data)
-        url = urllib.parse.urljoin(sign_url,postdata)
-        req = BuildReq(url)
+        postdata = BuildPostdata(user_name,password,token)
+        req = BuildReq(login_url)
+        data = opener.open(req,postdata)
+        cj.save()
+
+        req = BuildReq(tieba_url)
         data = opener.open(req).read()
+        fav_tiebas = FindFavTieba(data)
 
-        resp = json.loads(data.decode('utf-8'))
-        
-        if not resp:
-            print('Error: NO TBS')
-        elif resp['error'] != '':
-            print('Error:%s' %resp['error'])
-        else:
-            print('Signed')
+        if fav_tiebas:
+            print('%s logined!'%user_name)
+
+        for fav_tieba in fav_tiebas:
+            req = BuildReq(urllib.parse.urljoin(tieba_url,fav_tieba))
+            data = opener.open(req).read()
+
+            postdata = FindTbs(data)
+            url = urllib.parse.urljoin(sign_url,postdata)
+            req = BuildReq(url)
+            data = opener.open(req).read()
+
+            resp = json.loads(data.decode('utf-8'))
+            
+            if not resp:
+                print('Error: NO TBS')
+            elif resp['error'] != '':
+                print('Error:%s' %resp['error'])
+            else:
+                print('Signed')
 
 
-        fp.write(data)
-        time.sleep(2)
-    cj.save()
-
-
-
+            fp.write(data)
+            time.sleep(2)
