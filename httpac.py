@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import urllib.request
 import urllib.parse
 import http.cookiejar
@@ -5,6 +6,7 @@ import re
 import time
 import json
 
+caller_url = "http://caller.ap01.aws.af.cm"
 tieba_url = "http://tieba.baidu.com"
 token_url = "https://passport.baidu.com/v2/api/?getapi&tpl=mn&apiver=v3&tt=1385610373352&class=login&logintype=dialogLogin&callback=bd__cbs__rh1uhg"
 login_url = "https://passport.baidu.com/v2/api/?login"
@@ -35,7 +37,7 @@ def BuildReq(url):
 
 def BuildPostdata(user_name,password,token):
     postdata = {
-        "username" : user_name, 
+        "username" : user_name,
         "password" : password,
         "staticpage" : "http://www.baidu.com/cache/user/html/v3Jump.html",
         "charset" : "UTF-8",
@@ -66,9 +68,14 @@ def FindFavTieba(data):
 
 def FindTbs(data):
     data = data.decode('utf-8')
-    tbs = re.findall('"tbs" : "(\w+)"',data)[0]
-    kw = re.findall('"kw" : "(.+?)"',data)[0]
-    fid = re.findall('"fid" : "(\d+)"',data)[0]
+    try:
+    	tbs = re.findall('"tbs" : "(\w+)"',data)[0]
+    	kw = re.findall('"kw" : "(.+?)"',data)[0]
+    	fid = re.findall('"fid" : "(\d+)"',data)[0]
+    except:
+        tbs = ''
+        kw = ''
+        fid = ''
     signdata = {
             'tbs': tbs,
             'is_like' : 1,
@@ -78,53 +85,64 @@ def FindTbs(data):
     signdata = '?kw='+kw+'&'+signdata
     return signdata
 
-if __name__ == "__main__":
-    for line in open('users.txt'):
-        user_name = line.split(':')[0]
-        password  =  line.split(':')[1] 
-        fp = open("1.html",'wb')
-
-        cookie_file = 'cookie.'+user_name+'.txt'
-        cj = ReadCookie(cookie_file)
-        opener = BuildOpener(cj)
-
-        req = BuildReq(tieba_url)
-        data = opener.open(req)
-
-        req = BuildReq(token_url)
+def SignTieba(fav_tiebas):
+    for fav_tieba in fav_tiebas:
+        req = BuildReq(urllib.parse.urljoin(tieba_url,fav_tieba))
         data = opener.open(req).read()
-        token = re.findall('"token" : "(\w+)"',data.decode('utf-8'))[0]
 
-        postdata = BuildPostdata(user_name,password,token)
-        req = BuildReq(login_url)
-        data = opener.open(req,postdata)
-        cj.save()
-
-        req = BuildReq(tieba_url)
+        postdata = FindTbs(data)
+        url = urllib.parse.urljoin(sign_url,postdata)
+        req = BuildReq(url)
         data = opener.open(req).read()
-        fav_tiebas = FindFavTieba(data)
 
-        if fav_tiebas:
-            print('%s logined!'%user_name)
+        resp = json.loads(data.decode('utf-8'))
 
-        for fav_tieba in fav_tiebas:
-            req = BuildReq(urllib.parse.urljoin(tieba_url,fav_tieba))
-            data = opener.open(req).read()
-
-            postdata = FindTbs(data)
-            url = urllib.parse.urljoin(sign_url,postdata)
-            req = BuildReq(url)
-            data = opener.open(req).read()
-
-            resp = json.loads(data.decode('utf-8'))
-            
+        try:
             if not resp:
                 print('Error: NO TBS')
             elif resp['error'] != '':
-                print('Error:%s' %resp['error'])
+                print('Error:' + resp['error'])
             else:
                 print('Signed')
+        except:
+            print('can not display!')
 
+        fp.write(data)
+        time.sleep(2)
 
-            fp.write(data)
-            time.sleep(2)
+if __name__ == "__main__":
+    while(1):
+        print(time.strftime("%Y-%m-%d %A %X",time.localtime()))
+        for line in open('users.txt'):
+            user_name = line.split(':')[0]
+            password  =  line.split(':')[1]
+            fp = open("1.html",'wb')
+
+            cookie_file = 'cookie.'+user_name+'.txt'
+            cj = ReadCookie(cookie_file)
+            opener = BuildOpener(cj)
+
+            req = BuildReq(tieba_url)
+            data = opener.open(req)
+
+            req = BuildReq(token_url)
+            data = opener.open(req).read()
+            token = re.findall('"token" : "(\w+)"',data.decode('utf-8'))[0]
+
+            postdata = BuildPostdata(user_name,password,token)
+            req = BuildReq(login_url)
+            data = opener.open(req,postdata)
+            cj.save()
+
+            req = BuildReq(tieba_url)
+            data = opener.open(req).read()
+            fav_tiebas = FindFavTieba(data)
+
+            if fav_tiebas:
+                print('%s logined!'%user_name)
+            else:
+                print("%s can't login!"%user_name)
+
+            SignTieba(fav_tiebas)
+
+        time.sleep(3600*4)
